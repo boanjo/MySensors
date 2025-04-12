@@ -374,10 +374,48 @@ LOCAL bool RFM95_send(const uint8_t recipient, uint8_t *data, const uint8_t len,
 
 LOCAL void RFM95_setFrequency(const uint32_t frequencyHz)
 {
+#if (MY_RFM95_FIXED_FREQUENCY_868MHZ)
+	msb = 0xD9; mid = 0x06; lsb = 0x42;
+#elif (MY_RFM95_FIXED_FREQUENCY_915MHZ)
+	msb = 0xE4; mid = 0xC0; lsb = 0x00;
+#elif (MY_RFM95_FIXED_FREQUENCY_433MHZ)
+	msb = 0x6C; mid = 0x80; lsb = 0x00;
+#else
+	#warning "MY_RFM95_FREQUENCY_MHZ not recognized. Falling back to calculated register values."
 	const uint32_t freqReg = (uint32_t)(frequencyHz / RFM95_FSTEP);
-	(void)RFM95_writeReg(RFM95_REG_06_FRF_MSB, (uint8_t)((freqReg >> 16) & 0xff));
-	(void)RFM95_writeReg(RFM95_REG_07_FRF_MID, (uint8_t)((freqReg >> 8) & 0xff));
-	(void)RFM95_writeReg(RFM95_REG_08_FRF_LSB, (uint8_t)(freqReg & 0xff));
+	msb = (uint8_t)((freqReg >> 16) & 0xff);
+	mid = (uint8_t)((freqReg >> 8) & 0xff);
+	lsb = (uint8_t)(freqReg & 0xff);
+#endif
+
+	Serial.println(F("Entering endless frequency write/read loop..."));
+	while (true) {
+		// Write frequency registers
+		(void)RFM95_writeReg(RFM95_REG_06_FRF_MSB, msb);
+		(void)RFM95_writeReg(RFM95_REG_07_FRF_MID, mid);
+		(void)RFM95_writeReg(RFM95_REG_08_FRF_LSB, lsb);
+
+		// Read back and print values
+		uint8_t readMsb = RFM95_RAW_readByteRegister(RFM95_REG_06_FRF_MSB);
+		uint8_t readMid = RFM95_RAW_readByteRegister(RFM95_REG_07_FRF_MID);
+		uint8_t readLsb = RFM95_RAW_readByteRegister(RFM95_REG_08_FRF_LSB);
+
+#if defined(MY_DEBUG_VERBOSE_RFM95_REGISTERS)
+		Serial.print(F("FRF: 0x"));
+		Serial.print(readMsb, HEX); Serial.print(" ");
+		Serial.print(readMid, HEX); Serial.print(" ");
+		Serial.println(readLsb, HEX);
+#endif
+
+		if(msb == readMsb && mid == readMid && lsb == readLsb) {
+			Serial.println(F("Frequency write/read match!"));
+			break;
+		} else {
+			Serial.println(F("Frequency write/read mismatch!"));
+		}
+
+		delay(1000); // Delay between each read/write round
+	}
 }
 
 LOCAL bool RFM95_setTxPowerLevel(rfm95_powerLevel_t newPowerLevel)
