@@ -374,11 +374,13 @@ LOCAL bool RFM95_send(const uint8_t recipient, uint8_t *data, const uint8_t len,
 
 LOCAL void RFM95_setFrequency(const uint32_t frequencyHz)
 {
-#if (MY_RFM95_FIXED_FREQUENCY_868MHZ)
+	uint8_t msb, mid, lsb;
+
+#if defined(MY_RFM95_FIXED_FREQUENCY_868MHZ)
 	msb = 0xD9; mid = 0x06; lsb = 0x42;
-#elif (MY_RFM95_FIXED_FREQUENCY_915MHZ)
+#elif defined(MY_RFM95_FIXED_FREQUENCY_915MHZ)
 	msb = 0xE4; mid = 0xC0; lsb = 0x00;
-#elif (MY_RFM95_FIXED_FREQUENCY_433MHZ)
+#elif defined (MY_RFM95_FIXED_FREQUENCY_433MHZ)
 	msb = 0x6C; mid = 0x80; lsb = 0x00;
 #else
 	#warning "MY_RFM95_FREQUENCY_MHZ not recognized. Falling back to calculated register values."
