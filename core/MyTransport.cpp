@@ -37,6 +37,9 @@ static transportState_t stUplink = { stUplinkTransition, stUplinkUpdate };
 static transportState_t stReady = { stReadyTransition, stReadyUpdate };
 static transportState_t stFailure = { stFailureTransition, stFailureUpdate };
 
+// Custom Node ID override
+static uint8_t __mys_nodeIdOverride = AUTO;
+
 // transport SM variables
 static transportSM_t _transportSM;
 
@@ -95,6 +98,11 @@ void stInitTransition(void)
 	                  sizeof(transportConfig_t));
 }
 
+void setNodeId(uint8_t id)
+{
+	__mys_nodeIdOverride = id;
+}
+
 void stInitUpdate(void)
 {
 	// initialise radio
@@ -121,13 +129,18 @@ void stInitUpdate(void)
 		// GW mode: skip FPAR,ID,UPL states
 		transportSwitchSM(stReady);
 #else
-		if (MY_NODE_ID != AUTO) {
+
+		if (__mys_nodeIdOverride != AUTO) {
+			TRANSPORT_DEBUG(PSTR("TSM:INIT:CUSTID=%" PRIu8 "\n"), (uint8_t)__mys_nodeIdOverride);
+			_transportConfig.nodeId = (uint8_t)__mys_nodeIdOverride;
+			hwWriteConfig(EEPROM_NODE_ID_ADDRESS, (uint8_t)__mys_nodeIdOverride);
+		}
+		else if (MY_NODE_ID != AUTO) {
 			TRANSPORT_DEBUG(PSTR("TSM:INIT:STATID=%" PRIu8 "\n"),(uint8_t)MY_NODE_ID);
-			// Set static ID
 			_transportConfig.nodeId = (uint8_t)MY_NODE_ID;
-			// Save static ID to eeprom (for bootloader)
 			hwWriteConfig(EEPROM_NODE_ID_ADDRESS, (uint8_t)MY_NODE_ID);
 		}
+
 		// assign ID if set
 		if (_transportConfig.nodeId == AUTO || transportAssignNodeID(_transportConfig.nodeId)) {
 			// if node ID valid (>0 and <255), proceed to next state
